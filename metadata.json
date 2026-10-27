@@ -1,0 +1,6 @@
+{
+  "name": "SROM Morning Vitamins Studio",
+  "description": "Devotional flyer portrait replacement and graphic studio for Soul Revival & Outreach Ministries (SROM).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
