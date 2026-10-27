@@ -3,12 +3,13 @@
   "name": "SROM Morning Vitamins Maker",
   "short_name": "SROM Flyer",
   "description": "Daily Morning Vitamins devotional flyer maker for Soul Revival & Outreach Ministries (SROM).",
-  "theme_color": "#020617",
-  "background_color": "#020617",
+  "theme_color": "#F7F5EE",
+  "background_color": "#F7F5EE",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
   "scope": "/",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/pwa-192x192.png",

@@ -158,28 +158,17 @@ async function startServer() {
   const app = express();
   app.use(express.json());
 
-  // Unregister any stale Workbox dev service workers in user browsers so updates are never blocked
-  app.get(['/dev-sw.js', '/sw.js', '/registerSW.js'], (_req, res) => {
+  app.get('/manifest.webmanifest', (_req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.sendFile(path.resolve(__dirname, 'public', 'manifest.webmanifest'));
+  });
+
+  app.get('/sw.js', (_req, res) => {
     res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    res.send(`
-      if (typeof self !== 'undefined' && self.registration) {
-        self.addEventListener('install', () => self.skipWaiting());
-        self.addEventListener('activate', (event) => {
-          event.waitUntil((async () => {
-            try {
-              const keys = await caches.keys();
-              await Promise.all(keys.map((k) => caches.delete(k)));
-              await self.registration.unregister();
-              const clients = await self.clients.matchAll({ type: 'window' });
-              for (const client of clients) {
-                client.navigate(client.url);
-              }
-            } catch (e) {}
-          })());
-        });
-      }
-    `);
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(path.resolve(__dirname, 'public', 'sw.js'));
   });
 
   app.get('/api/bible', async (req, res) => {

@@ -740,31 +740,36 @@ export default function App() {
     }));
   };
 
+  const shareableWebUrl =
+    typeof window !== 'undefined'
+      ? window.location.origin.replace('://ais-dev-', '://ais-pre-')
+      : 'https://ais-pre-tqtu5ee44t2h2h3uobn53i-939373021882.europe-west2.run.app';
+
   const handleCopyAppLink = () => {
-    navigator.clipboard?.writeText(window.location.href);
+    navigator.clipboard?.writeText(shareableWebUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 3000);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-20 lg:pb-6">
+    <div className="min-h-screen bg-[#F7F5EE] text-slate-900 flex flex-col pb-20 lg:pb-6">
       {/* Offline Mode Banner */}
       {!isOnline && (
-        <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-xs font-semibold text-center">
+        <div className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold text-center shadow-sm">
           Offline Mode Active — You can still create and download flyers without internet.
         </div>
       )}
 
       {/* Top Navigation Bar (Strict 3-Zone Contract) */}
-      <header className="flex items-center justify-between gap-8 px-4 sm:px-6 py-3.5 border-b border-slate-800/90 bg-slate-950/95 backdrop-blur-md sticky top-0 z-30">
+      <header className="flex items-center justify-between gap-8 px-4 sm:px-6 py-3.5 border-b border-slate-200 bg-white/95 backdrop-blur-md sticky top-0 z-30 shadow-xs">
         <a
           href="#editor"
-          className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0 font-display"
+          className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 whitespace-nowrap shrink-0 font-display"
         >
           SROM Morning Vitamins
         </a>
 
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
+        <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
           <a
             href="#edit"
             onClick={(e) => {
@@ -772,8 +777,10 @@ export default function App() {
               setActiveTab('edit');
               setMobileView('edit');
             }}
-            className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === 'edit' ? 'text-white underline underline-offset-8 decoration-amber-400' : ''
+            className={`hover:text-slate-950 transition-colors whitespace-nowrap shrink-0 ${
+              activeTab === 'edit'
+                ? 'text-slate-950 font-bold underline underline-offset-8 decoration-amber-500 decoration-2'
+                : ''
             }`}
           >
             Edit Daily Text
@@ -785,8 +792,10 @@ export default function App() {
               setActiveTab('saved');
               setMobileView('saved');
             }}
-            className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === 'saved' ? 'text-white underline underline-offset-8 decoration-amber-400' : ''
+            className={`hover:text-slate-950 transition-colors whitespace-nowrap shrink-0 ${
+              activeTab === 'saved'
+                ? 'text-slate-950 font-bold underline underline-offset-8 decoration-amber-500 decoration-2'
+                : ''
             }`}
           >
             Saved Flyers ({savedList.length})
@@ -798,8 +807,10 @@ export default function App() {
               setActiveTab('portrait');
               setMobileView('edit');
             }}
-            className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === 'portrait' ? 'text-white underline underline-offset-8 decoration-amber-400' : ''
+            className={`hover:text-slate-950 transition-colors whitespace-nowrap shrink-0 ${
+              activeTab === 'portrait'
+                ? 'text-slate-950 font-bold underline underline-offset-8 decoration-amber-500 decoration-2'
+                : ''
             }`}
           >
             Pastor Portrait
@@ -810,7 +821,7 @@ export default function App() {
               e.preventDefault();
               setShowPhoneModal(true);
             }}
-            className="hover:text-white transition-colors whitespace-nowrap shrink-0 text-amber-300"
+            className="hover:text-amber-800 transition-colors whitespace-nowrap shrink-0 text-amber-700 font-bold"
           >
             Install on Phone
           </a>
@@ -820,7 +831,7 @@ export default function App() {
           <button
             type="button"
             onClick={handleShareFlyer}
-            className="min-h-[42px] px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-colors whitespace-nowrap shrink-0 flex items-center gap-2 cursor-pointer shadow-sm"
+            className="min-h-[42px] px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 border border-amber-500/40 rounded-xl transition-colors whitespace-nowrap shrink-0 flex items-center gap-2 cursor-pointer shadow-xs"
           >
             <Share2 className="w-4 h-4" />
             <span>Share / Save Flyer</span>
@@ -840,15 +851,15 @@ export default function App() {
           }`}
         >
           {/* Desktop Sub-Navigation Tabs */}
-          <div className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+          <div className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-200 pb-3">
+            <div className="flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-xl shadow-2xs">
               <button
                 type="button"
                 onClick={() => setActiveTab('edit')}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'edit'
-                    ? 'bg-amber-400 text-slate-950'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-amber-400 text-slate-950 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-950'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
@@ -857,10 +868,10 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setActiveTab('saved')}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'saved'
-                    ? 'bg-amber-400 text-slate-950'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-amber-400 text-slate-950 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-950'
                 }`}
               >
                 <Bookmark className="w-3.5 h-3.5" />
@@ -869,10 +880,10 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setActiveTab('portrait')}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'portrait'
-                    ? 'bg-amber-400 text-slate-950'
-                    : 'text-slate-300 hover:text-white'
+                    ? 'bg-amber-400 text-slate-950 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-950'
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
@@ -882,23 +893,23 @@ export default function App() {
           </div>
 
           {/* Mobile Quick Banner to Preview Flyer */}
-          <div className="lg:hidden flex items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5">
+          <div className="lg:hidden flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs">
             <div className="flex items-center gap-3 min-w-0">
               <img
                 src="/apple-touch-icon.png"
                 alt="SROM App Icon"
                 referrerPolicy="no-referrer"
-                className="w-10 h-10 rounded-xl shrink-0 border border-amber-400/50"
+                className="w-10 h-10 rounded-xl shrink-0 border border-amber-500"
               />
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">{content.verseRef}</p>
-                <p className="text-[11px] text-slate-400 truncate">{content.dateLine}</p>
+                <p className="text-xs font-extrabold text-slate-900 truncate">{content.verseRef}</p>
+                <p className="text-[11px] font-medium text-slate-600 truncate">{content.dateLine}</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setMobileView('preview')}
-              className="min-h-[44px] px-4 py-2 text-xs font-bold bg-amber-400 text-slate-950 rounded-xl whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer"
+              className="min-h-[44px] px-4 py-2 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
               <ImageIcon className="w-4 h-4" />
               View Flyer
@@ -907,41 +918,41 @@ export default function App() {
 
           {/* Mobile Phone Installation View */}
           {mobileView === 'phone' && (
-            <div className="lg:hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4">
+            <div className="lg:hidden bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
                   <Smartphone className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white font-display">
+                  <h2 className="text-base font-bold text-slate-900 font-display">
                     Install SROM App on Phone
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Add to your home screen for 1-tap daily access
                   </p>
                 </div>
               </div>
 
               {isInstalled ? (
-                <div className="p-4 rounded-xl bg-emerald-950/50 border border-emerald-700/50 text-emerald-200 text-xs leading-relaxed">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-medium leading-relaxed">
                   This app is already installed on your phone home screen!
                 </div>
               ) : isInstallable ? (
                 <button
                   type="button"
                   onClick={install}
-                  className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
                   <Download className="w-4 h-4" />
                   Tap Here to Install App on Phone
                 </button>
               ) : (
-                <div className="flex flex-col gap-3 text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <p className="font-semibold text-amber-300">
+                <div className="flex flex-col gap-3 text-xs text-slate-800 bg-amber-50/70 p-4 rounded-xl border border-amber-200">
+                  <p className="font-bold text-slate-900">
                     {isIOS ? 'On iPhone / iPad (Safari):' : 'On Android (Chrome):'}
                   </p>
                   {isIOS ? (
-                    <ol className="list-decimal list-inside space-y-2 text-slate-300">
+                    <ol className="list-decimal list-inside space-y-2 text-slate-800">
                       <li>
                         Tap the <strong>Share</strong> button at the bottom of Safari.
                       </li>
@@ -953,7 +964,7 @@ export default function App() {
                       </li>
                     </ol>
                   ) : (
-                    <ol className="list-decimal list-inside space-y-2 text-slate-300">
+                    <ol className="list-decimal list-inside space-y-2 text-slate-800">
                       <li>
                         Tap the <strong>3-dot menu (⋮)</strong> in the top-right of Chrome.
                       </li>
@@ -965,14 +976,14 @@ export default function App() {
                 </div>
               )}
 
-              <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
-                <span className="text-xs text-slate-400">
+              <div className="pt-2 border-t border-slate-200 flex flex-col gap-2">
+                <span className="text-xs font-medium text-slate-600">
                   Share this link with your dad on WhatsApp so he can open it on his phone:
                 </span>
                 <button
                   type="button"
                   onClick={handleCopyAppLink}
-                  className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   {copiedLink ? 'Link Copied! Paste in WhatsApp' : 'Copy App Link for Dad’s Phone'}
@@ -983,24 +994,24 @@ export default function App() {
 
           {/* MAIN EDITOR FORM */}
           {activeTab === 'edit' && mobileView !== 'saved' && mobileView !== 'phone' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col gap-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col gap-6 shadow-sm">
               <div>
-                <h1 className="text-lg font-bold text-white font-display">
+                <h1 className="text-lg font-extrabold text-slate-900 font-display">
                   Daily Morning Vitamins Editor
                 </h1>
-                <p className="text-xs text-slate-400 mt-1">
-                  Type into the 3 boxes below — the text automatically fits the flyer in the original bold font.
+                <p className="text-xs font-medium text-slate-600 mt-1">
+                  Type into the 3 sections below — the text automatically fits the flyer in the original bold font.
                 </p>
               </div>
 
               {/* STEP 1: THE DATE */}
-              <div className="flex flex-col gap-2.5 pb-5 border-b border-slate-800/80">
+              <div className="flex flex-col gap-2.5 pb-5 border-b border-slate-200">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label
                     htmlFor="date-line-input"
-                    className="text-sm font-semibold text-amber-300 flex items-center gap-2"
+                    className="text-sm font-bold text-slate-900 flex items-center gap-2"
                   >
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="w-4 h-4 text-amber-600" />
                     1. Date & Heading Line
                   </label>
 
@@ -1008,18 +1019,18 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setQuickDate(0)}
-                      className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      className="min-h-[38px] px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       Today
                     </button>
                     <button
                       type="button"
                       onClick={() => setQuickDate(1)}
-                      className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      className="min-h-[38px] px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       Tomorrow
                     </button>
-                    <label className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center cursor-pointer">
+                    <label className="min-h-[38px] px-3 py-1.5 text-xs font-bold bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center cursor-pointer">
                       Pick Date
                       <input
                         type="date"
@@ -1037,33 +1048,33 @@ export default function App() {
                   value={content.dateLine}
                   onChange={(e) => setContent((c) => ({ ...c, dateLine: e.target.value }))}
                   placeholder="e.g. 1ST OCTOBER, 2026 - MORNING VITAMINS"
-                  className="w-full min-h-[48px] px-4 py-3 text-base font-semibold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white"
+                  className="w-full min-h-[48px] px-4 py-3 text-base font-bold bg-slate-50 border-2 border-slate-300 focus:border-amber-500 focus:bg-white focus:outline-none rounded-xl text-slate-950 placeholder:text-slate-400"
                 />
               </div>
 
               {/* STEP 2: BIBLE VERSE & QUOTE (AUTO-FETCH BY VERSE & VERSION) */}
-              <div className="flex flex-col gap-4 pb-5 border-b border-slate-800/80">
+              <div className="flex flex-col gap-4 pb-5 border-b border-slate-200">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label
                     htmlFor="verse-ref-input"
-                    className="text-sm font-semibold text-amber-300 flex items-center gap-2"
+                    className="text-sm font-bold text-slate-900 flex items-center gap-2"
                   >
-                    <BookOpen className="w-4 h-4" />
+                    <BookOpen className="w-4 h-4 text-amber-600" />
                     2. Bible Verse & Version (Auto-Loads Scripture)
                   </label>
                   <div className="flex items-center gap-2 text-xs">
                     {isFetchingVerse ? (
-                      <span className="text-amber-300 font-medium flex items-center gap-1.5">
+                      <span className="text-amber-700 font-bold flex items-center gap-1.5">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         Loading {bibleVersion} words...
                       </span>
                     ) : verseLookupNote ? (
-                      <span className="text-emerald-400 font-medium flex items-center gap-1">
+                      <span className="text-emerald-700 font-bold flex items-center gap-1">
                         <Check className="w-3.5 h-3.5" />
                         {verseLookupNote}
                       </span>
                     ) : (
-                      <span className="text-slate-400">Auto-fits</span>
+                      <span className="text-slate-600 font-medium">Auto-fits</span>
                     )}
                   </div>
                 </div>
@@ -1071,7 +1082,7 @@ export default function App() {
                 {/* Verse Reference + Bible Version Selector */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   <div className="sm:col-span-7 flex flex-col gap-1.5">
-                    <span className="text-xs font-medium text-slate-300">
+                    <span className="text-xs font-bold text-slate-700">
                       Type Bible Book, Chapter & Verse
                     </span>
                     <input
@@ -1081,14 +1092,14 @@ export default function App() {
                       value={verseInput}
                       onChange={(e) => setVerseInput(e.target.value)}
                       placeholder="e.g. Acts 6:8 or John 3:16"
-                      className="w-full min-h-[48px] px-4 py-3 text-base font-bold uppercase bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white"
+                      className="w-full min-h-[48px] px-4 py-3 text-base font-extrabold uppercase bg-slate-50 border-2 border-slate-300 focus:border-amber-500 focus:bg-white focus:outline-none rounded-xl text-slate-950 placeholder:text-slate-400"
                     />
                   </div>
 
                   <div className="sm:col-span-5 flex flex-col gap-1.5">
                     <label
                       htmlFor="bible-version-select"
-                      className="text-xs font-medium text-slate-300"
+                      className="text-xs font-bold text-slate-700"
                     >
                       Choose Bible Version
                     </label>
@@ -1096,10 +1107,10 @@ export default function App() {
                       id="bible-version-select"
                       value={bibleVersion}
                       onChange={(e) => setBibleVersion(e.target.value)}
-                      className="w-full min-h-[48px] px-3.5 py-3 text-sm font-bold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-amber-300 cursor-pointer"
+                      className="w-full min-h-[48px] px-3.5 py-3 text-sm font-extrabold bg-amber-50 border-2 border-amber-400 focus:border-amber-600 focus:outline-none rounded-xl text-slate-950 cursor-pointer"
                     >
                       {BIBLE_VERSIONS.map((v) => (
-                        <option key={v.code} value={v.code} className="bg-slate-950 text-white">
+                        <option key={v.code} value={v.code} className="bg-white text-slate-950">
                           {v.label}
                         </option>
                       ))}
@@ -1109,10 +1120,10 @@ export default function App() {
 
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-300">
+                    <span className="text-xs font-bold text-slate-700">
                       Bible Verse Words (loads automatically — or edit below)
                     </span>
-                    <span className="text-[11px] font-semibold text-amber-300/90">
+                    <span className="text-xs font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
                       Banner: {content.verseRef}
                     </span>
                   </div>
@@ -1122,7 +1133,7 @@ export default function App() {
                     value={content.verseText}
                     onChange={(e) => setContent((c) => ({ ...c, verseText: e.target.value }))}
                     placeholder="Bible verse words load here automatically..."
-                    className="w-full px-4 py-3 text-base font-bold uppercase bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white leading-relaxed resize-y"
+                    className="w-full px-4 py-3 text-base font-bold uppercase bg-slate-50 border-2 border-slate-300 focus:border-amber-500 focus:bg-white focus:outline-none rounded-xl text-slate-950 leading-relaxed resize-y placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -1132,12 +1143,12 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <label
                     htmlFor="declaration-input"
-                    className="text-sm font-semibold text-amber-300 flex items-center gap-2"
+                    className="text-sm font-bold text-slate-900 flex items-center gap-2"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles className="w-4 h-4 text-amber-600" />
                     3. Daily Declaration
                   </label>
-                  <span className="text-xs text-slate-400">Auto-fits</span>
+                  <span className="text-xs font-medium text-slate-600">Auto-fits</span>
                 </div>
 
                 <textarea
@@ -1147,25 +1158,25 @@ export default function App() {
                   value={content.declarationText}
                   onChange={(e) => setContent((c) => ({ ...c, declarationText: e.target.value }))}
                   placeholder="Type the prophetic declaration for the day..."
-                  className="w-full px-4 py-3 text-base font-semibold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white leading-relaxed resize-y"
+                  className="w-full px-4 py-3 text-base font-semibold bg-slate-50 border-2 border-slate-300 focus:border-amber-500 focus:bg-white focus:outline-none rounded-xl text-slate-950 leading-relaxed resize-y placeholder:text-slate-400"
                 />
               </div>
 
               {/* Bottom Action Buttons inside Editor */}
-              <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleSaveDevotional}
-                    className="flex-1 sm:flex-initial min-h-[44px] px-4 py-2.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="flex-1 sm:flex-initial min-h-[44px] px-4 py-2.5 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Bookmark className="w-4 h-4 text-amber-400" />
+                    <Bookmark className="w-4 h-4 text-amber-600" />
                     Save to Library
                   </button>
                   <button
                     type="button"
                     onClick={() => loadDevotionalIntoEditor(DEFAULT_CONTENT)}
-                    className="min-h-[44px] px-3 py-2.5 text-xs font-medium text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="min-h-[44px] px-3 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-950 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Reset
@@ -1176,7 +1187,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleShareFlyer}
-                    className="flex-1 sm:flex-initial min-h-[46px] px-5 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="flex-1 sm:flex-initial min-h-[46px] px-5 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 border border-amber-500/40 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
                   >
                     <Share2 className="w-4 h-4" />
                     Share / Save PNG
@@ -1184,7 +1195,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => handleDownload('jpeg')}
-                    className="min-h-[46px] px-4 py-2.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="min-h-[46px] px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     JPG
@@ -1193,8 +1204,8 @@ export default function App() {
               </div>
 
               {exportMessage && (
-                <div className="px-4 py-3 rounded-xl bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-xs font-medium flex items-center gap-2">
-                  <Check className="w-4 h-4 shrink-0" />
+                <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0 text-emerald-600" />
                   <span>{exportMessage}</span>
                 </div>
               )}
@@ -1203,13 +1214,13 @@ export default function App() {
 
           {/* SAVED FLYERS LIST */}
           {(activeTab === 'saved' || mobileView === 'saved') && mobileView !== 'phone' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-base font-bold text-white font-display">
+                  <h2 className="text-base font-bold text-slate-900 font-display">
                     Saved Flyers & Presets
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-600 mt-0.5">
                     Tap any devotional below to load it onto the flyer.
                   </p>
                 </div>
@@ -1229,17 +1240,21 @@ export default function App() {
                   return (
                     <div
                       key={item.id}
-                      className={`p-4 rounded-xl border transition-colors flex flex-col gap-2 ${
+                      className={`p-4 rounded-xl border-2 transition-colors flex flex-col gap-2 ${
                         isCurrent
-                          ? 'bg-amber-400/10 border-amber-400/50'
-                          : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
+                          ? 'bg-amber-50/70 border-amber-400'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-xs text-slate-400 min-w-0">
-                          <span className="font-bold text-amber-300 shrink-0">{item.verseRef}</span>
+                        <div className="flex items-center gap-2 text-xs text-slate-600 min-w-0">
+                          <span className="font-extrabold text-amber-800 shrink-0">
+                            {item.verseRef}
+                          </span>
                           <span aria-hidden="true">·</span>
-                          <span className="text-slate-300 truncate">{item.dateLine}</span>
+                          <span className="text-slate-700 font-semibold truncate">
+                            {item.dateLine}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button
@@ -1249,7 +1264,7 @@ export default function App() {
                               setActiveTab('edit');
                               setMobileView('preview');
                             }}
-                            className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors cursor-pointer"
+                            className="min-h-[38px] px-3 py-1.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
                           >
                             Load Flyer
                           </button>
@@ -1257,7 +1272,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => handleDeleteSaved(item.id)}
-                              className="min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                              className="min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
                               title="Remove from saved list"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1265,10 +1280,10 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-slate-200 font-medium line-clamp-2">
+                      <p className="text-xs text-slate-900 font-bold line-clamp-2">
                         “{item.verseText}”
                       </p>
-                      <p className="text-xs text-slate-400 line-clamp-2">{item.declarationText}</p>
+                      <p className="text-xs text-slate-600 line-clamp-2">{item.declarationText}</p>
                     </div>
                   );
                 })}
@@ -1278,13 +1293,13 @@ export default function App() {
 
           {/* PASTOR PORTRAIT SETTINGS */}
           {activeTab === 'portrait' && mobileView !== 'saved' && mobileView !== 'phone' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col gap-5">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col gap-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-white font-display">
+                  <h2 className="text-base font-bold text-slate-900 font-display">
                     Pastor Portrait Settings
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-600 mt-0.5">
                     Fine-tune or change the photo inside the bottom-left circular frame.
                   </p>
                 </div>
@@ -1294,15 +1309,15 @@ export default function App() {
                     setPortrait(DEFAULT_PORTRAIT);
                     setPastorUrl(PASTOR_SRC);
                   }}
-                  className="min-h-[38px] px-2.5 text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+                  className="min-h-[38px] px-2.5 text-xs font-semibold text-slate-600 hover:text-slate-950 flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   Reset Photo
                 </button>
               </div>
 
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-400 shrink-0">
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-500 shrink-0">
                   <img
                     src={pastorUrl}
                     alt="Evangelist Albert Dela Amedzro"
@@ -1311,7 +1326,7 @@ export default function App() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs text-slate-300">
+                  <span className="text-xs font-medium text-slate-700">
                     Upload a different portrait photo if needed:
                   </span>
                   <div>
@@ -1328,7 +1343,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => pastorInputRef.current?.click()}
-                      className="min-h-[40px] px-3.5 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="min-h-[40px] px-3.5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       Upload Another Photo
@@ -1340,10 +1355,10 @@ export default function App() {
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between text-xs">
-                    <label htmlFor="zoom-range" className="text-slate-300 font-medium">
+                    <label htmlFor="zoom-range" className="text-slate-800 font-bold">
                       Photo Zoom inside Circle
                     </label>
-                    <span className="font-mono text-slate-400">
+                    <span className="font-mono font-semibold text-slate-700">
                       {Math.round(portrait.scale * 100)}%
                     </span>
                   </div>
@@ -1357,17 +1372,19 @@ export default function App() {
                     onChange={(e) =>
                       setPortrait((p) => ({ ...p, scale: parseFloat(e.target.value) }))
                     }
-                    className="w-full accent-amber-400 cursor-pointer"
+                    className="w-full accent-amber-500 cursor-pointer"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <div className="flex justify-between text-xs">
-                      <label htmlFor="panx-range" className="text-slate-300 font-medium">
+                      <label htmlFor="panx-range" className="text-slate-800 font-bold">
                         Move Left / Right
                       </label>
-                      <span className="font-mono text-slate-400">{portrait.offsetX} px</span>
+                      <span className="font-mono font-semibold text-slate-700">
+                        {portrait.offsetX} px
+                      </span>
                     </div>
                     <input
                       id="panx-range"
@@ -1379,16 +1396,18 @@ export default function App() {
                       onChange={(e) =>
                         setPortrait((p) => ({ ...p, offsetX: parseFloat(e.target.value) }))
                       }
-                      className="w-full accent-amber-400 cursor-pointer"
+                      className="w-full accent-amber-500 cursor-pointer"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <div className="flex justify-between text-xs">
-                      <label htmlFor="pany-range" className="text-slate-300 font-medium">
+                      <label htmlFor="pany-range" className="text-slate-800 font-bold">
                         Move Up / Down
                       </label>
-                      <span className="font-mono text-slate-400">{portrait.offsetY} px</span>
+                      <span className="font-mono font-semibold text-slate-700">
+                        {portrait.offsetY} px
+                      </span>
                     </div>
                     <input
                       id="pany-range"
@@ -1400,7 +1419,7 @@ export default function App() {
                       onChange={(e) =>
                         setPortrait((p) => ({ ...p, offsetY: parseFloat(e.target.value) }))
                       }
-                      className="w-full accent-amber-400 cursor-pointer"
+                      className="w-full accent-amber-500 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -1411,27 +1430,29 @@ export default function App() {
 
         {/* Right Column: Live High-Resolution Flyer Preview */}
         <section
-          className={`lg:col-span-6 bg-slate-900/70 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 lg:sticky lg:top-20 ${
+          className={`lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 lg:sticky lg:top-20 shadow-sm ${
             mobileView === 'preview' ? 'flex' : 'hidden lg:flex'
           }`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="font-semibold text-white">Live Flyer Preview</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200">
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <span className="font-bold text-slate-900">Live Flyer Preview</span>
               <span aria-hidden="true">·</span>
               <span>Tap any text on the flyer to edit</span>
             </div>
-            <span className="text-xs text-slate-400 font-mono">1061 × 1482 px</span>
+            <span className="text-xs text-slate-500 font-mono">1061 × 1482 px</span>
           </div>
 
           {loading ? (
-            <div className="w-full min-h-[520px] flex flex-col items-center justify-center gap-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-slate-400">Preparing SROM Morning Vitamins Flyer...</p>
+            <div className="w-full min-h-[520px] flex flex-col items-center justify-center gap-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm font-medium text-slate-700">
+                Preparing SROM Morning Vitamins Flyer...
+              </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center bg-slate-950/90 border border-slate-800/80 rounded-xl p-2 sm:p-3">
-              <div className="relative max-w-[500px] w-full shadow-2xl rounded overflow-hidden border border-slate-800">
+            <div className="flex flex-col items-center justify-center bg-slate-100 border border-slate-200 rounded-xl p-2 sm:p-3">
+              <div className="relative max-w-[500px] w-full shadow-lg rounded overflow-hidden border border-slate-300 bg-white">
                 <canvas
                   ref={canvasRef}
                   onClick={handleCanvasClick}
@@ -1445,7 +1466,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setMobileView('edit')}
-                  className="min-h-[48px] px-4 py-3 rounded-xl bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                  className="min-h-[48px] px-4 py-3 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-amber-400" />
                   Edit Flyer Text
@@ -1467,7 +1488,7 @@ export default function App() {
       {/* Fixed Bottom Thumb-Zone Navigation Bar on Mobile (< 1024px) */}
       <nav
         aria-label="Mobile Navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 grid grid-cols-4 items-center h-16 px-2"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-4 items-center h-16 px-2 shadow-lg"
       >
         <button
           type="button"
@@ -1476,7 +1497,7 @@ export default function App() {
             setMobileView('edit');
           }}
           className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
-            mobileView === 'edit' ? 'text-amber-400 font-bold' : 'text-slate-400'
+            mobileView === 'edit' ? 'text-amber-700 font-extrabold bg-amber-50' : 'text-slate-600'
           }`}
         >
           <FileText className="w-5 h-5" />
@@ -1487,7 +1508,7 @@ export default function App() {
           type="button"
           onClick={() => setMobileView('preview')}
           className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
-            mobileView === 'preview' ? 'text-amber-400 font-bold' : 'text-slate-400'
+            mobileView === 'preview' ? 'text-amber-700 font-extrabold bg-amber-50' : 'text-slate-600'
           }`}
         >
           <ImageIcon className="w-5 h-5" />
@@ -1501,7 +1522,7 @@ export default function App() {
             setMobileView('saved');
           }}
           className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
-            mobileView === 'saved' ? 'text-amber-400 font-bold' : 'text-slate-400'
+            mobileView === 'saved' ? 'text-amber-700 font-extrabold bg-amber-50' : 'text-slate-600'
           }`}
         >
           <Bookmark className="w-5 h-5" />
@@ -1512,7 +1533,7 @@ export default function App() {
           type="button"
           onClick={() => setMobileView('phone')}
           className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
-            mobileView === 'phone' ? 'text-amber-400 font-bold' : 'text-slate-400'
+            mobileView === 'phone' ? 'text-amber-700 font-extrabold bg-amber-50' : 'text-slate-600'
           }`}
         >
           <Smartphone className="w-5 h-5" />
@@ -1522,21 +1543,21 @@ export default function App() {
 
       {/* Desktop Modal: Install on Dad's Phone */}
       {showPhoneModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img
                   src="/apple-touch-icon.png"
                   alt="SROM App Icon"
                   referrerPolicy="no-referrer"
-                  className="w-12 h-12 rounded-2xl border border-amber-400"
+                  className="w-12 h-12 rounded-2xl border border-amber-500"
                 />
                 <div>
-                  <h3 className="text-base font-bold text-white font-display">
+                  <h3 className="text-base font-bold text-slate-900 font-display">
                     Open & Install on Dad’s Phone
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Works on Android & iPhone (Offline-Ready)
                   </p>
                 </div>
@@ -1544,23 +1565,23 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowPhoneModal(false)}
-                className="min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                className="min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-500 hover:text-slate-900 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 leading-relaxed">
-              <p className="font-semibold text-amber-300">How your dad can install it on his phone:</p>
+            <div className="flex flex-col gap-3 text-xs text-slate-800 bg-amber-50/70 p-4 rounded-xl border border-amber-200 leading-relaxed">
+              <p className="font-bold text-slate-900">How your dad can install it on his phone:</p>
               <ol className="list-decimal list-inside space-y-2">
                 <li>
                   Copy the app link below and send it to his phone via <strong>WhatsApp</strong>.
                 </li>
                 <li>
-                  When he opens the link on his phone, he can tap the <strong>Phone App</strong> tab at the bottom and tap <strong>Install App</strong> (Android) or <strong>Share → Add to Home Screen</strong> (iPhone).
+                  When he opens the link in <strong>Chrome</strong> (Android) or <strong>Safari</strong> (iPhone), tap the browser menu and select <strong>Add to Home screen</strong>.
                 </li>
                 <li>
-                  The app will appear on his phone’s home screen with his portrait icon and work anytime — even offline!
+                  The app will appear on his phone’s home screen with his portrait icon!
                 </li>
               </ol>
             </div>
@@ -1580,7 +1601,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleCopyAppLink}
-                className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
               >
                 {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 {copiedLink ? 'App Link Copied!' : 'Copy Link to Send to Dad'}
@@ -1588,7 +1609,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowPhoneModal(false)}
-                className="min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-medium cursor-pointer"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer"
               >
                 Done
               </button>
