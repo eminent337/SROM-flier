@@ -15,7 +15,6 @@ import {
   Bookmark,
   Trash2,
   Sliders,
-  Eye,
   FileText,
 } from 'lucide-react';
 
@@ -87,7 +86,6 @@ const DEFAULT_PORTRAIT: PortraitSettings = {
 };
 
 const CLEAN_TEMPLATE_SRC = '/assets/aistudio/srom_clean_template.png';
-const ORIGINAL_FLYER_SRC = '/assets/aistudio/image_e35e8614.png';
 const PASTOR_SRC = '/assets/aistudio/image_ac3cca0a.png';
 const STORAGE_KEY = 'srom_saved_devotionals_v2';
 
@@ -144,7 +142,6 @@ export default function App() {
   const declarationInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [templateImg, setTemplateImg] = useState<HTMLImageElement | null>(null);
-  const [originalImg, setOriginalImg] = useState<HTMLImageElement | null>(null);
   const [pastorImg, setPastorImg] = useState<HTMLImageElement | null>(null);
   const [pastorUrl, setPastorUrl] = useState<string>(PASTOR_SRC);
   const [loading, setLoading] = useState<boolean>(true);
@@ -152,7 +149,6 @@ export default function App() {
   const [content, setContent] = useState<DevotionalContent>(DEFAULT_CONTENT);
   const [portrait, setPortrait] = useState<PortraitSettings>(DEFAULT_PORTRAIT);
   const [activeTab, setActiveTab] = useState<'edit' | 'saved' | 'portrait'>('edit');
-  const [showOriginal, setShowOriginal] = useState<boolean>(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   const [savedList, setSavedList] = useState<DevotionalContent[]>(() => {
@@ -207,14 +203,12 @@ export default function App() {
 
     Promise.all([
       loadImg(CLEAN_TEMPLATE_SRC),
-      loadImg(ORIGINAL_FLYER_SRC),
       loadImg(pastorUrl),
       loadFonts(),
     ])
-      .then(([loadedTemplate, loadedOrig, loadedPastor]) => {
+      .then(([loadedTemplate, loadedPastor]) => {
         if (!active) return;
         setTemplateImg(loadedTemplate);
-        setOriginalImg(loadedOrig);
         setPastorImg(loadedPastor);
         setLoading(false);
       })
@@ -280,11 +274,6 @@ export default function App() {
       }
 
       ctx.clearRect(0, 0, width, height);
-
-      if (showOriginal && originalImg) {
-        ctx.drawImage(originalImg, 0, 0, width, height);
-        return;
-      }
 
       // 1. Draw the clean base flyer template
       ctx.drawImage(templateImg, 0, 0, width, height);
@@ -512,14 +501,14 @@ export default function App() {
         ctx.restore();
       }
     },
-    [templateImg, originalImg, pastorImg, content, portrait, showOriginal]
+    [templateImg, pastorImg, content, portrait]
   );
 
   useEffect(() => {
     if (canvasRef.current && templateImg && pastorImg) {
       renderFlyer(canvasRef.current);
     }
-  }, [templateImg, pastorImg, content, portrait, showOriginal, renderFlyer]);
+  }, [templateImg, pastorImg, content, portrait, renderFlyer]);
 
   // Click directly on regions of the flyer preview to focus the corresponding editor box
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -667,7 +656,6 @@ export default function App() {
               e.preventDefault();
               setContent(DEFAULT_CONTENT);
               setPortrait(DEFAULT_PORTRAIT);
-              setShowOriginal(false);
             }}
             className="hover:text-white transition-colors whitespace-nowrap shrink-0"
           >
@@ -1125,19 +1113,7 @@ export default function App() {
               <span aria-hidden="true">·</span>
               <span>Click any text on the flyer to edit it</span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setShowOriginal((v) => !v)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
-                showOriginal
-                  ? 'bg-amber-400 text-slate-950 border-amber-400 font-semibold'
-                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              {showOriginal ? 'Showing Original Unedited Flyer' : 'Compare with Original'}
-            </button>
+            <span className="text-xs text-slate-400 font-mono">1061 × 1482 px</span>
           </div>
 
           {loading ? (
