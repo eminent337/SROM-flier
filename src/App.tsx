@@ -16,7 +16,19 @@ import {
   Trash2,
   Sliders,
   FileText,
+  Share2,
+  Smartphone,
+  Copy,
+  Image as ImageIcon,
+  X,
+  Loader2,
 } from 'lucide-react';
+import { usePWAInstall, useOnlineStatus } from './usePWAInstall';
+import {
+  BIBLE_VERSIONS,
+  parseBibleReference,
+  fetchBibleVerseText,
+} from './bibleLookup';
 
 interface DevotionalContent {
   id: string;
@@ -116,7 +128,6 @@ function formatOrdinalDate(date: Date): string {
   return `${day}${suffix} ${month}, ${year} - MORNING VITAMINS`;
 }
 
-// Helper to draw ultra-bold text with matching stroke reinforcement so boldness matches original flyer
 function drawBoldText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -141,6 +152,9 @@ export default function App() {
   const verseTextInputRef = useRef<HTMLTextAreaElement | null>(null);
   const declarationInputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
+  const isOnline = useOnlineStatus();
+
   const [templateImg, setTemplateImg] = useState<HTMLImageElement | null>(null);
   const [pastorImg, setPastorImg] = useState<HTMLImageElement | null>(null);
   const [pastorUrl, setPastorUrl] = useState<string>(PASTOR_SRC);
@@ -148,8 +162,106 @@ export default function App() {
 
   const [content, setContent] = useState<DevotionalContent>(DEFAULT_CONTENT);
   const [portrait, setPortrait] = useState<PortraitSettings>(DEFAULT_PORTRAIT);
+
+  // Automatic Bible Verse & Version Lookup State
+  const [verseInput, setVerseInput] = useState<string>('ACTS 6:8');
+  const [bibleVersion, setBibleVersion] = useState<string>('NIV');
+  const [isFetchingVerse, setIsFetchingVerse] = useState<boolean>(false);
+  const [verseLookupNote, setVerseLookupNote] = useState<string | null>(
+    'Loaded ACTS 6:8 (NIV)'
+  );
+  const latestLookupIdRef = useRef<number>(0);
+
+  const loadDevotionalIntoEditor = useCallback((item: DevotionalContent) => {
+    latestLookupIdRef.current += 1;
+    setContent(item);
+    const versionMatch = item.verseRef.match(/\(([A-Za-z0-9]+)\)\s*$/);
+    const extractedVersion = versionMatch ? versionMatch[1].toUpperCase() : 'NIV';
+    const extractedRef = item.verseRef
+      .replace(/\([A-Za-z0-9\s]+\)\s*$/, '')
+      .trim()
+      .toUpperCase();
+    const validVersion = BIBLE_VERSIONS.some((v) => v.code === extractedVersion)
+      ? extractedVersion
+      : 'NIV';
+
+    if (extractedRef) setVerseInput(extractedRef);
+    setBibleVersion(validVersion);
+    setIsFetchingVerse(false);
+    setVerseLookupNote(`Loaded ${item.verseRef}`);
+  }, []);
+
+  useEffect(() => {
+    const cleanRefKey = verseInput.replace(/\([A-Za-z0-9\s]+\)/g, '').trim().toUpperCase();
+    const parsed = parseBibleReference(verseInput);
+
+    if (!parsed) {
+      if (cleanRefKey) {
+        setContent((prev) => ({
+          ...prev,
+          verseRef: `${cleanRefKey} (${bibleVersion})`,
+        }));
+      }
+      setIsFetchingVerse(false);
+      setVerseLookupNote('Type book, chapter & verse (e.g. John 3:16)');
+      return;
+    }
+
+    const formattedBannerRef = `${parsed.canonicalRef} (${bibleVersion})`;
+    setContent((prev) =>
+      prev.verseRef === formattedBannerRef
+        ? prev
+        : { ...prev, verseRef: formattedBannerRef }
+    );
+
+    const lookupId = ++latestLookupIdRef.current;
+    const controller = new AbortController();
+    setIsFetchingVerse(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const fetchedText = await fetchBibleVerseText(
+          parsed,
+          bibleVersion,
+          controller.signal
+        );
+        if (controller.signal.aborted || lookupId !== latestLookupIdRef.current) return;
+
+        if (fetchedText) {
+          setContent((prev) => ({
+            ...prev,
+            verseRef: formattedBannerRef,
+            verseText: fetchedText.toUpperCase(),
+          }));
+          setVerseLookupNote(`Loaded ${formattedBannerRef}`);
+        } else {
+          setVerseLookupNote(
+            `Verse ${formattedBannerRef} not found — check chapter/verse number`
+          );
+        }
+      } catch (err) {
+        if ((err as Error)?.name !== 'AbortError' && lookupId === latestLookupIdRef.current) {
+          setVerseLookupNote(null);
+        }
+      } finally {
+        if (!controller.signal.aborted && lookupId === latestLookupIdRef.current) {
+          setIsFetchingVerse(false);
+        }
+      }
+    }, 120);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [verseInput, bibleVersion]);
+
+  // Desktop tab ('edit' | 'saved' | 'portrait') and Mobile bottom tab ('preview' | 'edit' | 'saved' | 'phone')
   const [activeTab, setActiveTab] = useState<'edit' | 'saved' | 'portrait'>('edit');
+  const [mobileView, setMobileView] = useState<'preview' | 'edit' | 'saved' | 'phone'>('edit');
+  const [showPhoneModal, setShowPhoneModal] = useState<boolean>(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   const [savedList, setSavedList] = useState<DevotionalContent[]>(() => {
     try {
@@ -172,7 +284,6 @@ export default function App() {
     }
   }, [savedList]);
 
-  // Load images and wait for Montserrat + Outfit fonts to be ready before rendering
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -201,11 +312,7 @@ export default function App() {
       }
     };
 
-    Promise.all([
-      loadImg(CLEAN_TEMPLATE_SRC),
-      loadImg(pastorUrl),
-      loadFonts(),
-    ])
+    Promise.all([loadImg(CLEAN_TEMPLATE_SRC), loadImg(pastorUrl), loadFonts()])
       .then(([loadedTemplate, loadedPastor]) => {
         if (!active) return;
         setTemplateImg(loadedTemplate);
@@ -222,7 +329,6 @@ export default function App() {
     };
   }, [pastorUrl]);
 
-  // Helper to wrap text for a given font size and per-line width limit
   const wrapTextLines = (
     ctx: CanvasRenderingContext2D,
     text: string,
@@ -278,12 +384,12 @@ export default function App() {
       // 1. Draw the clean base flyer template
       ctx.drawImage(templateImg, 0, 0, width, height);
 
-      // 2. AUTO-FIT DATE LINE (Original position: minX=226, maxX=795, top=119, bottom=141, underline y=146)
+      // 2. AUTO-FIT DATE LINE
       const dateStr = content.dateLine.trim().toUpperCase();
       if (dateStr) {
         ctx.save();
         let dateFontSize = 31.5;
-        const maxDateWidth = 566; // Stops cleanly before "Depopulating hell"
+        const maxDateWidth = 566;
         ctx.font = `700 ${dateFontSize}px "Outfit", "Montserrat", sans-serif`;
         while (ctx.measureText(dateStr).width > maxDateWidth && dateFontSize > 15) {
           dateFontSize -= 0.5;
@@ -295,7 +401,6 @@ export default function App() {
         ctx.textBaseline = 'alphabetic';
         drawBoldText(ctx, dateStr, 226, 140.5, dateFontSize * 0.025);
 
-        // Crisp underline matching SOUL REVIVAL header above it
         const measuredW = Math.min(ctx.measureText(dateStr).width, maxDateWidth);
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -305,7 +410,7 @@ export default function App() {
         ctx.restore();
       }
 
-      // 3. AUTO-FIT BIBLE VERSE REFERENCE (Original position: centerX=530.5, top=214, bottom=261)
+      // 3. AUTO-FIT BIBLE VERSE REFERENCE
       const refStr = content.verseRef.trim().toUpperCase();
       if (refStr) {
         ctx.save();
@@ -325,8 +430,6 @@ export default function App() {
       }
 
       // 4. AUTO-FIT MAIN BIBLE QUOTE / VERSE CONTENT
-      // Original bounds: top=294, bottom=683 (boxHeight=390), centerX=531.5, maxWidth=790
-      // Original font: Ultra-heavy Montserrat Black (900) uppercase, 68px, line-height 68px (1.0x)
       const verseUpper = content.verseText.trim().toUpperCase();
       if (verseUpper) {
         ctx.save();
@@ -339,13 +442,11 @@ export default function App() {
         let lines: string[] = [];
         let lineHeight = fontSize * 1.02;
 
-        // Auto-fit loop: finds the largest font size (up to 68px) where all wrapped lines fit both horizontally & vertically
         for (fontSize = 68; fontSize >= 22; fontSize -= 0.5) {
           ctx.font = `900 ${fontSize}px "Montserrat", sans-serif`;
           if ('letterSpacing' in ctx) {
             (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${-fontSize * 0.02}px`;
           }
-          // Balance width target slightly so 6-line verses break just like the original flyer
           const effectiveWidth = fontSize >= 62 ? 755 : maxVerseWidth;
           lines = wrapTextLines(ctx, verseUpper, () => effectiveWidth);
           lineHeight = fontSize * 1.03;
@@ -382,7 +483,6 @@ export default function App() {
       }
 
       // 5. AUTO-FIT DECLARATION CONTENT
-      // Increased font size and width allowance so the declaration renders noticeably larger while staying auto-fitted
       const declStr = content.declarationText.trim();
       if (declStr) {
         ctx.save();
@@ -398,7 +498,6 @@ export default function App() {
           ctx.font = `700 ${declFontSize}px "Outfit", sans-serif`;
           declLineHeight = declFontSize * 1.07;
 
-          // Calculate which line indices fall into the lower narrow zone (y >= 1150, next to Pastor portrait & Bible)
           const approxNarrowStartLine = Math.max(
             5,
             Math.floor((1150 - declTop) / declLineHeight)
@@ -426,7 +525,6 @@ export default function App() {
 
         const declStrokeBoldness = declFontSize * 0.024;
         declLines.forEach((line) => {
-          // Lines sitting lower than y=1158 are centered at x=552 (between the circular portrait and Holy Bible)
           const lineCenterX = currentY >= 1158 ? 552 : 542;
           drawBoldText(ctx, line, lineCenterX, currentY, declStrokeBoldness);
           currentY += declLineHeight;
@@ -435,7 +533,7 @@ export default function App() {
         ctx.restore();
       }
 
-      // 6. Draw the Replaced Pastor Portrait in the bottom-left gold circle
+      // 6. Draw the Pastor Portrait in the bottom-left gold circle
       const {
         circleX,
         circleY,
@@ -472,7 +570,6 @@ export default function App() {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      // Seamlessly extend the top 3px row of the studio backdrop upward so shifting the portrait down leaves zero seam above the head
       const circleTopEdge = circleY - circleRadius - 4;
       if (drawY > circleTopEdge) {
         ctx.drawImage(
@@ -508,9 +605,8 @@ export default function App() {
     if (canvasRef.current && templateImg && pastorImg) {
       renderFlyer(canvasRef.current);
     }
-  }, [templateImg, pastorImg, content, portrait, renderFlyer]);
+  }, [templateImg, pastorImg, content, portrait, mobileView, renderFlyer]);
 
-  // Click directly on regions of the flyer preview to focus the corresponding editor box
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -522,10 +618,12 @@ export default function App() {
 
     if (Math.hypot(x - portrait.circleX, y - portrait.circleY) <= portrait.circleRadius) {
       setActiveTab('portrait');
+      setMobileView('edit');
       return;
     }
 
     setActiveTab('edit');
+    setMobileView('edit');
     setTimeout(() => {
       if (y < 185) {
         dateInputRef.current?.focus();
@@ -536,7 +634,16 @@ export default function App() {
       } else if (y >= 720 && y < 1265) {
         declarationInputRef.current?.focus();
       }
-    }, 30);
+    }, 50);
+  };
+
+  const getSafeFileName = (ext: 'png' | 'jpg') => {
+    const safeSlug = content.dateLine
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40);
+    return `${safeSlug || 'morning-vitamins'}.${ext}`;
   };
 
   const handleDownload = (format: 'png' | 'jpeg') => {
@@ -546,21 +653,52 @@ export default function App() {
 
     const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
     const dataUrl = offscreen.toDataURL(mimeType, 0.96);
-    const safeSlug = content.dateLine
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 40);
 
     const link = document.createElement('a');
-    link.download = `${safeSlug || 'morning-vitamins'}.${format === 'png' ? 'png' : 'jpg'}`;
+    link.download = getSafeFileName(format === 'png' ? 'png' : 'jpg');
     link.href = dataUrl;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    setExportMessage(`Saved ${format.toUpperCase()} Flyer (${offscreen.width} × ${offscreen.height} px)`);
+    setExportMessage(`Saved ${format.toUpperCase()} Flyer to your device!`);
     setTimeout(() => setExportMessage(null), 4000);
+  };
+
+  // Native Mobile Share (WhatsApp, Photos, Telegram, etc.) with automatic fallback to Download
+  const handleShareFlyer = async () => {
+    if (!templateImg || !pastorImg) return;
+    const offscreen = document.createElement('canvas');
+    renderFlyer(offscreen);
+
+    offscreen.toBlob(
+      async (blob) => {
+        if (!blob) {
+          handleDownload('png');
+          return;
+        }
+        const fileName = getSafeFileName('png');
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: content.dateLine,
+              text: `${content.verseRef} — ${content.dateLine}`,
+              files: [file],
+            });
+            setExportMessage('Shared Flyer!');
+            setTimeout(() => setExportMessage(null), 3500);
+            return;
+          } catch (err) {
+            if ((err as Error)?.name === 'AbortError') return;
+          }
+        }
+        handleDownload('png');
+      },
+      'image/png',
+      0.96
+    );
   };
 
   const handleSaveDevotional = () => {
@@ -602,15 +740,28 @@ export default function App() {
     }));
   };
 
+  const handleCopyAppLink = () => {
+    navigator.clipboard?.writeText(window.location.href);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 3000);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Navigation Bar (3-Zone Contract) */}
-      <header className="flex items-center justify-between gap-8 px-6 py-4 border-b border-slate-800/90 bg-slate-950/95 sticky top-0 z-30">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-20 lg:pb-6">
+      {/* Offline Mode Banner */}
+      {!isOnline && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-xs font-semibold text-center">
+          Offline Mode Active — You can still create and download flyers without internet.
+        </div>
+      )}
+
+      {/* Top Navigation Bar (Strict 3-Zone Contract) */}
+      <header className="flex items-center justify-between gap-8 px-4 sm:px-6 py-3.5 border-b border-slate-800/90 bg-slate-950/95 backdrop-blur-md sticky top-0 z-30">
         <a
           href="#editor"
-          className="text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0 font-display"
+          className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0 font-display"
         >
-          SROM Morning Vitamins Maker
+          SROM Morning Vitamins
         </a>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
@@ -619,6 +770,7 @@ export default function App() {
             onClick={(e) => {
               e.preventDefault();
               setActiveTab('edit');
+              setMobileView('edit');
             }}
             className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'edit' ? 'text-white underline underline-offset-8 decoration-amber-400' : ''
@@ -631,6 +783,7 @@ export default function App() {
             onClick={(e) => {
               e.preventDefault();
               setActiveTab('saved');
+              setMobileView('saved');
             }}
             className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'saved' ? 'text-white underline underline-offset-8 decoration-amber-400' : ''
@@ -643,6 +796,7 @@ export default function App() {
             onClick={(e) => {
               e.preventDefault();
               setActiveTab('portrait');
+              setMobileView('edit');
             }}
             className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'portrait' ? 'text-white underline underline-offset-8 decoration-amber-400' : ''
@@ -651,44 +805,47 @@ export default function App() {
             Pastor Portrait
           </a>
           <a
-            href="#reset"
+            href="#phone-app"
             onClick={(e) => {
               e.preventDefault();
-              setContent(DEFAULT_CONTENT);
-              setPortrait(DEFAULT_PORTRAIT);
+              setShowPhoneModal(true);
             }}
-            className="hover:text-white transition-colors whitespace-nowrap shrink-0"
+            className="hover:text-white transition-colors whitespace-nowrap shrink-0 text-amber-300"
           >
-            Reset Flyer
+            Install on Phone
           </a>
         </nav>
 
         <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
-            onClick={() => handleDownload('png')}
-            className="px-4 py-2.5 text-xs font-semibold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-2 cursor-pointer shadow-sm"
+            onClick={handleShareFlyer}
+            className="min-h-[42px] px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-colors whitespace-nowrap shrink-0 flex items-center gap-2 cursor-pointer shadow-sm"
           >
-            <Download className="w-4 h-4" />
-            Download Flyer Image
+            <Share2 className="w-4 h-4" />
+            <span>Share / Save Flyer</span>
           </button>
         </div>
       </header>
 
-      {/* Main 2-Column Studio Workspace */}
+      {/* Main Responsive Workspace (Mobile Single-View + Desktop 2-Column) */}
       <main
         id="editor"
-        className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+        className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start"
       >
-        {/* Left Column: Simple, Dad-Friendly Form Editor (6 columns) */}
-        <section className="lg:col-span-6 flex flex-col gap-5">
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-lg">
+        {/* Left Column: Editor / Saved / Phone Install (Visible on Desktop always, or on Mobile when active) */}
+        <section
+          className={`lg:col-span-6 flex flex-col gap-5 ${
+            mobileView === 'preview' ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
+          {/* Desktop Sub-Navigation Tabs */}
+          <div className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-1 p-1 bg-slate-900 border border-slate-800 rounded-xl">
               <button
                 type="button"
                 onClick={() => setActiveTab('edit')}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'edit'
                     ? 'bg-amber-400 text-slate-950'
                     : 'text-slate-300 hover:text-white'
@@ -700,7 +857,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setActiveTab('saved')}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'saved'
                     ? 'bg-amber-400 text-slate-950'
                     : 'text-slate-300 hover:text-white'
@@ -712,7 +869,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setActiveTab('portrait')}
-                className={`px-3.5 py-2 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'portrait'
                     ? 'bg-amber-400 text-slate-950'
                     : 'text-slate-300 hover:text-white'
@@ -724,14 +881,115 @@ export default function App() {
             </div>
           </div>
 
-          {activeTab === 'edit' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 flex flex-col gap-6">
+          {/* Mobile Quick Banner to Preview Flyer */}
+          <div className="lg:hidden flex items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src="/apple-touch-icon.png"
+                alt="SROM App Icon"
+                referrerPolicy="no-referrer"
+                className="w-10 h-10 rounded-xl shrink-0 border border-amber-400/50"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{content.verseRef}</p>
+                <p className="text-[11px] text-slate-400 truncate">{content.dateLine}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileView('preview')}
+              className="min-h-[44px] px-4 py-2 text-xs font-bold bg-amber-400 text-slate-950 rounded-xl whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <ImageIcon className="w-4 h-4" />
+              View Flyer
+            </button>
+          </div>
+
+          {/* Mobile Phone Installation View */}
+          {mobileView === 'phone' && (
+            <div className="lg:hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                  <Smartphone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white font-display">
+                    Install SROM App on Phone
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Add to your home screen for 1-tap daily access
+                  </p>
+                </div>
+              </div>
+
+              {isInstalled ? (
+                <div className="p-4 rounded-xl bg-emerald-950/50 border border-emerald-700/50 text-emerald-200 text-xs leading-relaxed">
+                  This app is already installed on your phone home screen!
+                </div>
+              ) : isInstallable ? (
+                <button
+                  type="button"
+                  onClick={install}
+                  className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  Tap Here to Install App on Phone
+                </button>
+              ) : (
+                <div className="flex flex-col gap-3 text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <p className="font-semibold text-amber-300">
+                    {isIOS ? 'On iPhone / iPad (Safari):' : 'On Android (Chrome):'}
+                  </p>
+                  {isIOS ? (
+                    <ol className="list-decimal list-inside space-y-2 text-slate-300">
+                      <li>
+                        Tap the <strong>Share</strong> button at the bottom of Safari.
+                      </li>
+                      <li>
+                        Scroll down and tap <strong>Add to Home Screen</strong>.
+                      </li>
+                      <li>
+                        Tap <strong>Add</strong> in the top-right corner.
+                      </li>
+                    </ol>
+                  ) : (
+                    <ol className="list-decimal list-inside space-y-2 text-slate-300">
+                      <li>
+                        Tap the <strong>3-dot menu (⋮)</strong> in the top-right of Chrome.
+                      </li>
+                      <li>
+                        Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>.
+                      </li>
+                    </ol>
+                  )}
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                <span className="text-xs text-slate-400">
+                  Share this link with your dad on WhatsApp so he can open it on his phone:
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyAppLink}
+                  className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copiedLink ? 'Link Copied! Paste in WhatsApp' : 'Copy App Link for Dad’s Phone'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* MAIN EDITOR FORM */}
+          {activeTab === 'edit' && mobileView !== 'saved' && mobileView !== 'phone' && (
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col gap-6">
               <div>
                 <h1 className="text-lg font-bold text-white font-display">
                   Daily Morning Vitamins Editor
                 </h1>
                 <p className="text-xs text-slate-400 mt-1">
-                  Type into the boxes below — every section automatically scales to fit while keeping the original bold typography.
+                  Type into the 3 boxes below — the text automatically fits the flyer in the original bold font.
                 </p>
               </div>
 
@@ -746,23 +1004,23 @@ export default function App() {
                     1. Date & Heading Line
                   </label>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setQuickDate(0)}
-                      className="px-2.5 py-1 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
-                      Use Today
+                      Today
                     </button>
                     <button
                       type="button"
                       onClick={() => setQuickDate(1)}
-                      className="px-2.5 py-1 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
-                      Use Tomorrow
+                      Tomorrow
                     </button>
-                    <label className="px-2.5 py-1 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer">
-                      Pick Calendar Date
+                    <label className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center cursor-pointer">
+                      Pick Date
                       <input
                         type="date"
                         onChange={handleDatePickerChange}
@@ -779,49 +1037,92 @@ export default function App() {
                   value={content.dateLine}
                   onChange={(e) => setContent((c) => ({ ...c, dateLine: e.target.value }))}
                   placeholder="e.g. 1ST OCTOBER, 2026 - MORNING VITAMINS"
-                  className="w-full px-4 py-3 text-base font-semibold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-lg text-white"
+                  className="w-full min-h-[48px] px-4 py-3 text-base font-semibold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white"
                 />
               </div>
 
-              {/* STEP 2: BIBLE VERSE & QUOTE */}
+              {/* STEP 2: BIBLE VERSE & QUOTE (AUTO-FETCH BY VERSE & VERSION) */}
               <div className="flex flex-col gap-4 pb-5 border-b border-slate-800/80">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <label
                     htmlFor="verse-ref-input"
                     className="text-sm font-semibold text-amber-300 flex items-center gap-2"
                   >
                     <BookOpen className="w-4 h-4" />
-                    2. Bible Verse & Scripture Quote
+                    2. Bible Verse & Version (Auto-Loads Scripture)
                   </label>
-                  <span className="text-xs text-slate-400">Auto-fits to flyer</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    {isFetchingVerse ? (
+                      <span className="text-amber-300 font-medium flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Loading {bibleVersion} words...
+                      </span>
+                    ) : verseLookupNote ? (
+                      <span className="text-emerald-400 font-medium flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        {verseLookupNote}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Auto-fits</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Verse Reference + Bible Version Selector */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-7 flex flex-col gap-1.5">
+                    <span className="text-xs font-medium text-slate-300">
+                      Type Bible Book, Chapter & Verse
+                    </span>
+                    <input
+                      ref={verseRefInputRef}
+                      id="verse-ref-input"
+                      type="text"
+                      value={verseInput}
+                      onChange={(e) => setVerseInput(e.target.value)}
+                      placeholder="e.g. Acts 6:8 or John 3:16"
+                      className="w-full min-h-[48px] px-4 py-3 text-base font-bold uppercase bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-5 flex flex-col gap-1.5">
+                    <label
+                      htmlFor="bible-version-select"
+                      className="text-xs font-medium text-slate-300"
+                    >
+                      Choose Bible Version
+                    </label>
+                    <select
+                      id="bible-version-select"
+                      value={bibleVersion}
+                      onChange={(e) => setBibleVersion(e.target.value)}
+                      className="w-full min-h-[48px] px-3.5 py-3 text-sm font-bold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-amber-300 cursor-pointer"
+                    >
+                      {BIBLE_VERSIONS.map((v) => (
+                        <option key={v.code} value={v.code} className="bg-slate-950 text-white">
+                          {v.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-slate-300">
-                    Bible Chapter & Verse (inside the top yellow banner)
-                  </span>
-                  <input
-                    ref={verseRefInputRef}
-                    id="verse-ref-input"
-                    type="text"
-                    value={content.verseRef}
-                    onChange={(e) => setContent((c) => ({ ...c, verseRef: e.target.value }))}
-                    placeholder="e.g. ACTS 6:8 (NIV)"
-                    className="w-full px-4 py-3 text-base font-bold uppercase bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-lg text-white"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-slate-300">
-                    Bible Verse Content (automatically capitalized, bolded & sized to fit)
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-300">
+                      Bible Verse Words (loads automatically — or edit below)
+                    </span>
+                    <span className="text-[11px] font-semibold text-amber-300/90">
+                      Banner: {content.verseRef}
+                    </span>
+                  </div>
                   <textarea
                     ref={verseTextInputRef}
                     rows={4}
                     value={content.verseText}
                     onChange={(e) => setContent((c) => ({ ...c, verseText: e.target.value }))}
-                    placeholder="Type or paste the Bible verse here..."
-                    className="w-full px-4 py-3 text-base font-bold uppercase bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-lg text-white leading-relaxed resize-y"
+                    placeholder="Bible verse words load here automatically..."
+                    className="w-full px-4 py-3 text-base font-bold uppercase bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white leading-relaxed resize-y"
                   />
                 </div>
               </div>
@@ -836,54 +1137,54 @@ export default function App() {
                     <Sparkles className="w-4 h-4" />
                     3. Daily Declaration
                   </label>
-                  <span className="text-xs text-slate-400">Auto-fits to flyer</span>
+                  <span className="text-xs text-slate-400">Auto-fits</span>
                 </div>
 
                 <textarea
                   ref={declarationInputRef}
                   id="declaration-input"
-                  rows={6}
+                  rows={5}
                   value={content.declarationText}
                   onChange={(e) => setContent((c) => ({ ...c, declarationText: e.target.value }))}
                   placeholder="Type the prophetic declaration for the day..."
-                  className="w-full px-4 py-3 text-base font-semibold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-lg text-white leading-relaxed resize-y"
+                  className="w-full px-4 py-3 text-base font-semibold bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none rounded-xl text-white leading-relaxed resize-y"
                 />
               </div>
 
-              {/* Bottom Action Bar inside Editor */}
-              <div className="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              {/* Bottom Action Buttons inside Editor */}
+              <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleSaveDevotional}
-                    className="px-3.5 py-2.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="flex-1 sm:flex-initial min-h-[44px] px-4 py-2.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Bookmark className="w-3.5 h-3.5 text-amber-400" />
+                    <Bookmark className="w-4 h-4 text-amber-400" />
                     Save to Library
                   </button>
                   <button
                     type="button"
-                    onClick={() => setContent(DEFAULT_CONTENT)}
-                    className="px-3 py-2.5 text-xs font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    onClick={() => loadDevotionalIntoEditor(DEFAULT_CONTENT)}
+                    className="min-h-[44px] px-3 py-2.5 text-xs font-medium text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    Restore Oct 1st Text
+                    Reset
                   </button>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleDownload('png')}
-                    className="px-5 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
+                    onClick={handleShareFlyer}
+                    className="flex-1 sm:flex-initial min-h-[46px] px-5 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Download className="w-4 h-4" />
-                    Download PNG
+                    <Share2 className="w-4 h-4" />
+                    Share / Save PNG
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDownload('jpeg')}
-                    className="px-4 py-2.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="min-h-[46px] px-4 py-2.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     JPG
@@ -892,7 +1193,7 @@ export default function App() {
               </div>
 
               {exportMessage && (
-                <div className="px-4 py-2.5 rounded-lg bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-xs font-medium flex items-center gap-2">
+                <div className="px-4 py-3 rounded-xl bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-xs font-medium flex items-center gap-2">
                   <Check className="w-4 h-4 shrink-0" />
                   <span>{exportMessage}</span>
                 </div>
@@ -900,23 +1201,24 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === 'saved' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
+          {/* SAVED FLYERS LIST */}
+          {(activeTab === 'saved' || mobileView === 'saved') && mobileView !== 'phone' && (
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base font-bold text-white font-display">
-                    Saved Flyers & Sample Devotionals
+                    Saved Flyers & Presets
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Click any saved devotional below to load its Date, Verse, and Declaration into the flyer.
+                    Tap any devotional below to load it onto the flyer.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleSaveDevotional}
-                  className="px-3 py-2 text-xs font-semibold bg-amber-400 text-slate-950 rounded-lg hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  className="min-h-[42px] px-3.5 py-2 text-xs font-bold bg-amber-400 text-slate-950 rounded-xl hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  Save Current Flyer
+                  Save Current
                 </button>
               </div>
 
@@ -927,37 +1229,38 @@ export default function App() {
                   return (
                     <div
                       key={item.id}
-                      className={`p-4 rounded-lg border transition-colors flex flex-col gap-2 ${
+                      className={`p-4 rounded-xl border transition-colors flex flex-col gap-2 ${
                         isCurrent
                           ? 'bg-amber-400/10 border-amber-400/50'
                           : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                          <span className="font-bold text-amber-300">{item.verseRef}</span>
+                        <div className="flex items-center gap-2 text-xs text-slate-400 min-w-0">
+                          <span className="font-bold text-amber-300 shrink-0">{item.verseRef}</span>
                           <span aria-hidden="true">·</span>
-                          <span className="text-slate-300">{item.dateLine}</span>
+                          <span className="text-slate-300 truncate">{item.dateLine}</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
                             type="button"
                             onClick={() => {
-                              setContent(item);
+                              loadDevotionalIntoEditor(item);
                               setActiveTab('edit');
+                              setMobileView('preview');
                             }}
-                            className="px-3 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-md transition-colors cursor-pointer"
+                            className="min-h-[38px] px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors cursor-pointer"
                           >
-                            Load into Editor
+                            Load Flyer
                           </button>
                           {savedList.length > 1 && (
                             <button
                               type="button"
                               onClick={() => handleDeleteSaved(item.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                              className="min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
                               title="Remove from saved list"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -973,15 +1276,16 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === 'portrait' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 flex flex-col gap-5">
+          {/* PASTOR PORTRAIT SETTINGS */}
+          {activeTab === 'portrait' && mobileView !== 'saved' && mobileView !== 'phone' && (
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-base font-bold text-white font-display">
                     Pastor Portrait Settings
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    The new photo of Evangelist Albert Dela Amedzro is locked into the bottom-left circular frame.
+                    Fine-tune or change the photo inside the bottom-left circular frame.
                   </p>
                 </div>
                 <button
@@ -990,14 +1294,14 @@ export default function App() {
                     setPortrait(DEFAULT_PORTRAIT);
                     setPastorUrl(PASTOR_SRC);
                   }}
-                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+                  className="min-h-[38px] px-2.5 text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   Reset Photo
                 </button>
               </div>
 
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-950 border border-slate-800">
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-950 border border-slate-800">
                 <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-400 shrink-0">
                   <img
                     src={pastorUrl}
@@ -1008,7 +1312,7 @@ export default function App() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <span className="text-xs text-slate-300">
-                    Want to upload a different portrait photo for a special occasion?
+                    Upload a different portrait photo if needed:
                   </span>
                   <div>
                     <input
@@ -1024,7 +1328,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => pastorInputRef.current?.click()}
-                      className="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-md transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="min-h-[40px] px-3.5 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       Upload Another Photo
@@ -1105,36 +1409,193 @@ export default function App() {
           )}
         </section>
 
-        {/* Right Column: Live High-Resolution Flyer Preview (6 columns) */}
-        <section className="lg:col-span-6 bg-slate-900/70 border border-slate-800 rounded-xl p-5 flex flex-col gap-4 lg:sticky lg:top-20">
+        {/* Right Column: Live High-Resolution Flyer Preview */}
+        <section
+          className={`lg:col-span-6 bg-slate-900/70 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 lg:sticky lg:top-20 ${
+            mobileView === 'preview' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="font-semibold text-white">Live Flyer Preview</span>
               <span aria-hidden="true">·</span>
-              <span>Click any text on the flyer to edit it</span>
+              <span>Tap any text on the flyer to edit</span>
             </div>
             <span className="text-xs text-slate-400 font-mono">1061 × 1482 px</span>
           </div>
 
           {loading ? (
-            <div className="w-full min-h-[620px] flex flex-col items-center justify-center gap-3 bg-slate-950/60 rounded-lg border border-slate-800">
+            <div className="w-full min-h-[520px] flex flex-col items-center justify-center gap-3 bg-slate-950/60 rounded-xl border border-slate-800">
               <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
               <p className="text-sm text-slate-400">Preparing SROM Morning Vitamins Flyer...</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center bg-slate-950/90 border border-slate-800/80 rounded-lg p-3">
+            <div className="flex flex-col items-center justify-center bg-slate-950/90 border border-slate-800/80 rounded-xl p-2 sm:p-3">
               <div className="relative max-w-[500px] w-full shadow-2xl rounded overflow-hidden border border-slate-800">
                 <canvas
                   ref={canvasRef}
                   onClick={handleCanvasClick}
-                  title="Click any part of the flyer to jump to its text box"
+                  title="Tap any part of the flyer to edit its text"
                   className="w-full h-auto block cursor-pointer"
                 />
+              </div>
+
+              {/* Mobile Quick Actions directly below Preview */}
+              <div className="w-full grid grid-cols-2 gap-3 mt-4 lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMobileView('edit')}
+                  className="min-h-[48px] px-4 py-3 rounded-xl bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-amber-400" />
+                  Edit Flyer Text
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShareFlyer}
+                  className="min-h-[48px] px-4 py-3 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share to WhatsApp
+                </button>
               </div>
             </div>
           )}
         </section>
       </main>
+
+      {/* Fixed Bottom Thumb-Zone Navigation Bar on Mobile (< 1024px) */}
+      <nav
+        aria-label="Mobile Navigation"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 grid grid-cols-4 items-center h-16 px-2"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('edit');
+            setMobileView('edit');
+          }}
+          className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
+            mobileView === 'edit' ? 'text-amber-400 font-bold' : 'text-slate-400'
+          }`}
+        >
+          <FileText className="w-5 h-5" />
+          <span className="text-[11px] mt-1">Edit Text</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileView('preview')}
+          className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
+            mobileView === 'preview' ? 'text-amber-400 font-bold' : 'text-slate-400'
+          }`}
+        >
+          <ImageIcon className="w-5 h-5" />
+          <span className="text-[11px] mt-1">View Flyer</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('saved');
+            setMobileView('saved');
+          }}
+          className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
+            mobileView === 'saved' ? 'text-amber-400 font-bold' : 'text-slate-400'
+          }`}
+        >
+          <Bookmark className="w-5 h-5" />
+          <span className="text-[11px] mt-1">Saved ({savedList.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileView('phone')}
+          className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
+            mobileView === 'phone' ? 'text-amber-400 font-bold' : 'text-slate-400'
+          }`}
+        >
+          <Smartphone className="w-5 h-5" />
+          <span className="text-[11px] mt-1">Phone App</span>
+        </button>
+      </nav>
+
+      {/* Desktop Modal: Install on Dad's Phone */}
+      {showPhoneModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/apple-touch-icon.png"
+                  alt="SROM App Icon"
+                  referrerPolicy="no-referrer"
+                  className="w-12 h-12 rounded-2xl border border-amber-400"
+                />
+                <div>
+                  <h3 className="text-base font-bold text-white font-display">
+                    Open & Install on Dad’s Phone
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Works on Android & iPhone (Offline-Ready)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPhoneModal(false)}
+                className="min-h-[40px] min-w-[40px] flex items-center justify-center text-slate-400 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 leading-relaxed">
+              <p className="font-semibold text-amber-300">How your dad can install it on his phone:</p>
+              <ol className="list-decimal list-inside space-y-2">
+                <li>
+                  Copy the app link below and send it to his phone via <strong>WhatsApp</strong>.
+                </li>
+                <li>
+                  When he opens the link on his phone, he can tap the <strong>Phone App</strong> tab at the bottom and tap <strong>Install App</strong> (Android) or <strong>Share → Add to Home Screen</strong> (iPhone).
+                </li>
+                <li>
+                  The app will appear on his phone’s home screen with his portrait icon and work anytime — even offline!
+                </li>
+              </ol>
+            </div>
+
+            {isInstallable && !isInstalled && (
+              <button
+                type="button"
+                onClick={install}
+                className="w-full min-h-[46px] py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                Install App on This Device Now
+              </button>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyAppLink}
+                className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copiedLink ? 'App Link Copied!' : 'Copy Link to Send to Dad'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPhoneModal(false)}
+                className="min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-medium cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
