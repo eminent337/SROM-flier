@@ -1,15 +1,14 @@
 {
-  "id": "/",
-  "name": "SROM Morning Vitamins Maker",
+  "id": "/?app=srom-mobile-v5",
+  "name": "SROM Morning Vitamins Studio",
   "short_name": "SROM Flyer",
   "description": "Daily Morning Vitamins devotional flyer maker for Soul Revival & Outreach Ministries (SROM).",
   "theme_color": "#F7F5EE",
   "background_color": "#F7F5EE",
   "display": "standalone",
   "orientation": "portrait",
-  "start_url": "/",
+  "start_url": "/?app=srom-mobile-v5",
   "scope": "/",
-  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/pwa-192x192.png",

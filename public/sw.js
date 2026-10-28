@@ -1,6 +1,7 @@
-const CACHE_NAME = 'srom-flyer-pwa-v4';
+const CACHE_NAME = 'srom-flyer-pwa-v7';
 const PRECACHE_ASSETS = [
   '/',
+  '/?app=srom-mobile-v5',
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
@@ -18,7 +19,14 @@ self.addEventListener('install', (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) =>
-        Promise.allSettled(PRECACHE_ASSETS.map((url) => cache.add(url)))
+        Promise.allSettled(
+          PRECACHE_ASSETS.map((url) =>
+            fetch(url, { credentials: 'same-origin' }).then((res) => {
+              if (res.ok) return cache.put(url, res);
+              return Promise.resolve();
+            })
+          )
+        )
       )
   );
 });

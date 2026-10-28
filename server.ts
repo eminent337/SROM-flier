@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { buildStandaloneMobileAppHtml } from './server-standalone-app';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -160,7 +161,7 @@ async function startServer() {
 
   app.get('/manifest.webmanifest', (_req, res) => {
     res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.resolve(__dirname, 'public', 'manifest.webmanifest'));
   });
 
@@ -169,6 +170,24 @@ async function startServer() {
     res.setHeader('Service-Worker-Allowed', '/');
     res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.resolve(__dirname, 'public', 'sw.js'));
+  });
+
+  let cachedStandaloneHtml: string | null = null;
+  app.get('/api/download-mobile-app', (_req, res) => {
+    try {
+      if (!cachedStandaloneHtml) {
+        cachedStandaloneHtml = buildStandaloneMobileAppHtml(__dirname);
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="SROM-Morning-Vitamins-App.html"'
+      );
+      res.send(cachedStandaloneHtml);
+    } catch (err) {
+      console.error('Failed to generate standalone mobile app:', err);
+      res.status(500).send('Failed to generate mobile app file');
+    }
   });
 
   app.get('/api/bible', async (req, res) => {

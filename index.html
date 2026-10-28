@@ -18,10 +18,14 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <script>
+      window.__deferredPWAInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__deferredPWAInstallPrompt = e;
+        window.dispatchEvent(new Event('pwa-prompt-ready'));
+      });
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
-        });
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
       }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

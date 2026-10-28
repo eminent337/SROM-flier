@@ -17,7 +17,6 @@ import {
   Sliders,
   FileText,
   Share2,
-  Smartphone,
   Copy,
   Image as ImageIcon,
   X,
@@ -256,12 +255,46 @@ export default function App() {
     };
   }, [verseInput, bibleVersion]);
 
-  // Desktop tab ('edit' | 'saved' | 'portrait') and Mobile bottom tab ('preview' | 'edit' | 'saved' | 'phone')
+  // Desktop tab ('edit' | 'saved' | 'portrait') and Mobile bottom tab ('preview' | 'edit' | 'saved')
   const [activeTab, setActiveTab] = useState<'edit' | 'saved' | 'portrait'>('edit');
-  const [mobileView, setMobileView] = useState<'preview' | 'edit' | 'saved' | 'phone'>('edit');
+  const [mobileView, setMobileView] = useState<'preview' | 'edit' | 'saved'>('edit');
   const [showPhoneModal, setShowPhoneModal] = useState<boolean>(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
+
+  // Automatically hide the Install Mobile App button once the app is downloaded/installed
+  const hideAppDownloadOption = isInstalled;
+  const [installHelpHint, setInstallHelpHint] = useState<boolean>(false);
+  const [isPromptingInstall, setIsPromptingInstall] = useState<boolean>(false);
+  const isInIframe =
+    typeof window !== 'undefined' && window.self !== window.top;
+
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      window.location.search.includes('install=1') &&
+      !isInstalled
+    ) {
+      setShowPhoneModal(true);
+    }
+  }, [isInstalled]);
+
+  const handleInstallOnPhone = async () => {
+    setIsPromptingInstall(true);
+    const installed = await install();
+    setIsPromptingInstall(false);
+    if (installed) {
+      setShowPhoneModal(false);
+      setInstallHelpHint(false);
+      setMobileView('edit');
+      setExportMessage('Downloading & installing SROM Mobile App onto your phone!');
+      setTimeout(() => setExportMessage(null), 5000);
+      return;
+    }
+    // If the browser could not open the native install dialog immediately (e.g. inside preview iframe or iOS), show guidance modal
+    setInstallHelpHint(true);
+    setShowPhoneModal(true);
+  };
 
   const [savedList, setSavedList] = useState<DevotionalContent[]>(() => {
     try {
@@ -740,13 +773,13 @@ export default function App() {
     }));
   };
 
-  const shareableWebUrl =
+  const directAppUrl =
     typeof window !== 'undefined'
-      ? window.location.origin.replace('://ais-dev-', '://ais-pre-')
+      ? window.location.origin
       : 'https://ais-pre-tqtu5ee44t2h2h3uobn53i-939373021882.europe-west2.run.app';
 
   const handleCopyAppLink = () => {
-    navigator.clipboard?.writeText(shareableWebUrl);
+    navigator.clipboard?.writeText(directAppUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 3000);
   };
@@ -815,23 +848,28 @@ export default function App() {
           >
             Pastor Portrait
           </a>
-          <a
-            href="#phone-app"
-            onClick={(e) => {
-              e.preventDefault();
-              setShowPhoneModal(true);
-            }}
-            className="hover:text-amber-800 transition-colors whitespace-nowrap shrink-0 text-amber-700 font-bold"
-          >
-            Install on Phone
-          </a>
         </nav>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {!hideAppDownloadOption && (
+            <button
+              type="button"
+              onClick={handleInstallOnPhone}
+              disabled={isPromptingInstall}
+              className="min-h-[42px] px-3.5 sm:px-4 py-2 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              {isPromptingInstall ? (
+                <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 text-amber-400" />
+              )}
+              <span>{isPromptingInstall ? 'Installing...' : 'Install Mobile App'}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleShareFlyer}
-            className="min-h-[42px] px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 border border-amber-500/40 rounded-xl transition-colors whitespace-nowrap shrink-0 flex items-center gap-2 cursor-pointer shadow-xs"
+            className="min-h-[42px] px-3 sm:px-4 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 border border-amber-500/40 rounded-xl transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-xs"
           >
             <Share2 className="w-4 h-4" />
             <span>Share / Save Flyer</span>
@@ -892,116 +930,70 @@ export default function App() {
             </div>
           </div>
 
-          {/* Mobile Quick Banner to Preview Flyer */}
-          <div className="lg:hidden flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs">
-            <div className="flex items-center gap-3 min-w-0">
+          {/* Mobile Top Quick Bar: Reset & Download JPG */}
+          <div className="lg:hidden flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-2xl p-3 shadow-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src="/apple-touch-icon.png"
                 alt="SROM App Icon"
                 referrerPolicy="no-referrer"
-                className="w-10 h-10 rounded-xl shrink-0 border border-amber-500"
+                className="w-9 h-9 rounded-xl shrink-0 border border-amber-500"
               />
               <div className="min-w-0">
                 <p className="text-xs font-extrabold text-slate-900 truncate">{content.verseRef}</p>
                 <p className="text-[11px] font-medium text-slate-600 truncate">{content.dateLine}</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setMobileView('preview')}
-              className="min-h-[44px] px-4 py-2 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            >
-              <ImageIcon className="w-4 h-4" />
-              View Flyer
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => loadDevotionalIntoEditor(DEFAULT_CONTENT)}
+                className="min-h-[40px] px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownload('jpeg')}
+                className="min-h-[40px] px-3 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download JPG
+              </button>
+            </div>
           </div>
 
-          {/* Mobile Phone Installation View */}
-          {mobileView === 'phone' && (
-            <div className="lg:hidden bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
-                  <Smartphone className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 font-display">
-                    Install SROM App on Phone
-                  </h2>
-                  <p className="text-xs text-slate-600">
-                    Add to your home screen for 1-tap daily access
-                  </p>
-                </div>
-              </div>
-
-              {isInstalled ? (
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-medium leading-relaxed">
-                  This app is already installed on your phone home screen!
-                </div>
-              ) : isInstallable ? (
-                <button
-                  type="button"
-                  onClick={install}
-                  className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-                >
-                  <Download className="w-4 h-4" />
-                  Tap Here to Install App on Phone
-                </button>
-              ) : (
-                <div className="flex flex-col gap-3 text-xs text-slate-800 bg-amber-50/70 p-4 rounded-xl border border-amber-200">
-                  <p className="font-bold text-slate-900">
-                    {isIOS ? 'On iPhone / iPad (Safari):' : 'On Android (Chrome):'}
-                  </p>
-                  {isIOS ? (
-                    <ol className="list-decimal list-inside space-y-2 text-slate-800">
-                      <li>
-                        Tap the <strong>Share</strong> button at the bottom of Safari.
-                      </li>
-                      <li>
-                        Scroll down and tap <strong>Add to Home Screen</strong>.
-                      </li>
-                      <li>
-                        Tap <strong>Add</strong> in the top-right corner.
-                      </li>
-                    </ol>
-                  ) : (
-                    <ol className="list-decimal list-inside space-y-2 text-slate-800">
-                      <li>
-                        Tap the <strong>3-dot menu (⋮)</strong> in the top-right of Chrome.
-                      </li>
-                      <li>
-                        Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>.
-                      </li>
-                    </ol>
-                  )}
-                </div>
-              )}
-
-              <div className="pt-2 border-t border-slate-200 flex flex-col gap-2">
-                <span className="text-xs font-medium text-slate-600">
-                  Share this link with your dad on WhatsApp so he can open it on his phone:
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyAppLink}
-                  className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  {copiedLink ? 'Link Copied! Paste in WhatsApp' : 'Copy App Link for Dad’s Phone'}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* MAIN EDITOR FORM */}
-          {activeTab === 'edit' && mobileView !== 'saved' && mobileView !== 'phone' && (
+          {activeTab === 'edit' && mobileView !== 'saved' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col gap-6 shadow-sm">
-              <div>
-                <h1 className="text-lg font-extrabold text-slate-900 font-display">
-                  Daily Morning Vitamins Editor
-                </h1>
-                <p className="text-xs font-medium text-slate-600 mt-1">
-                  Type into the 3 sections below — the text automatically fits the flyer in the original bold font.
-                </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-lg font-extrabold text-slate-900 font-display">
+                    Daily Morning Vitamins Editor
+                  </h1>
+                  <p className="text-xs font-medium text-slate-600 mt-1">
+                    Type into the 3 sections below — the text automatically fits the flyer in the original bold font.
+                  </p>
+                </div>
+                <div className="hidden lg:flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => loadDevotionalIntoEditor(DEFAULT_CONTENT)}
+                    className="min-h-[38px] px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownload('jpeg')}
+                    className="min-h-[38px] px-3.5 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download JPG
+                  </button>
+                </div>
               </div>
 
               {/* STEP 1: THE DATE */}
@@ -1168,18 +1160,18 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleSaveDevotional}
-                    className="flex-1 sm:flex-initial min-h-[44px] px-4 py-2.5 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
+                    className="flex-1 sm:flex-initial min-h-[46px] px-4 py-2.5 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <Bookmark className="w-4 h-4 text-amber-600" />
                     Save to Library
                   </button>
                   <button
                     type="button"
-                    onClick={() => loadDevotionalIntoEditor(DEFAULT_CONTENT)}
-                    className="min-h-[44px] px-3 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-950 transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    onClick={() => setMobileView('preview')}
+                    className="flex-1 sm:flex-initial lg:hidden min-h-[46px] px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Reset
+                    <ImageIcon className="w-4 h-4 text-amber-400" />
+                    View Flyer
                   </button>
                 </div>
 
@@ -1187,18 +1179,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleShareFlyer}
-                    className="flex-1 sm:flex-initial min-h-[46px] px-5 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 border border-amber-500/40 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
+                    className="w-full sm:w-auto min-h-[46px] px-5 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 border border-amber-500/40 rounded-xl transition-colors flex items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
                   >
                     <Share2 className="w-4 h-4" />
                     Share / Save PNG
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDownload('jpeg')}
-                    className="min-h-[46px] px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    JPG
                   </button>
                 </div>
               </div>
@@ -1213,7 +1197,7 @@ export default function App() {
           )}
 
           {/* SAVED FLYERS LIST */}
-          {(activeTab === 'saved' || mobileView === 'saved') && mobileView !== 'phone' && (
+          {(activeTab === 'saved' || mobileView === 'saved') && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <div>
@@ -1292,7 +1276,7 @@ export default function App() {
           )}
 
           {/* PASTOR PORTRAIT SETTINGS */}
-          {activeTab === 'portrait' && mobileView !== 'saved' && mobileView !== 'phone' && (
+          {activeTab === 'portrait' && mobileView !== 'saved' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col gap-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -1488,7 +1472,7 @@ export default function App() {
       {/* Fixed Bottom Thumb-Zone Navigation Bar on Mobile (< 1024px) */}
       <nav
         aria-label="Mobile Navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-4 items-center h-16 px-2 shadow-lg"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-3 items-center h-16 px-2 shadow-lg"
       >
         <button
           type="button"
@@ -1528,20 +1512,9 @@ export default function App() {
           <Bookmark className="w-5 h-5" />
           <span className="text-[11px] mt-1">Saved ({savedList.length})</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => setMobileView('phone')}
-          className={`min-h-[48px] flex flex-col items-center justify-center rounded-xl transition-colors cursor-pointer ${
-            mobileView === 'phone' ? 'text-amber-700 font-extrabold bg-amber-50' : 'text-slate-600'
-          }`}
-        >
-          <Smartphone className="w-5 h-5" />
-          <span className="text-[11px] mt-1">Phone App</span>
-        </button>
       </nav>
 
-      {/* Desktop Modal: Install on Dad's Phone */}
+      {/* Phone Installation Modal */}
       {showPhoneModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl">
@@ -1555,10 +1528,10 @@ export default function App() {
                 />
                 <div>
                   <h3 className="text-base font-bold text-slate-900 font-display">
-                    Open & Install on Dad’s Phone
+                    Install SROM Mobile App
                   </h3>
                   <p className="text-xs text-slate-600">
-                    Works on Android & iPhone (Offline-Ready)
+                    Installs directly onto your phone home screen & app drawer
                   </p>
                 </div>
               </div>
@@ -1571,30 +1544,60 @@ export default function App() {
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 text-xs text-slate-800 bg-amber-50/70 p-4 rounded-xl border border-amber-200 leading-relaxed">
-              <p className="font-bold text-slate-900">How your dad can install it on his phone:</p>
-              <ol className="list-decimal list-inside space-y-2">
-                <li>
-                  Copy the app link below and send it to his phone via <strong>WhatsApp</strong>.
-                </li>
-                <li>
-                  When he opens the link in <strong>Chrome</strong> (Android) or <strong>Safari</strong> (iPhone), tap the browser menu and select <strong>Add to Home screen</strong>.
-                </li>
-                <li>
-                  The app will appear on his phone’s home screen with his portrait icon!
-                </li>
-              </ol>
-            </div>
+            {!isInstalled && (
+              <div className="flex flex-col gap-2.5">
+                {isInstallable ? (
+                  <button
+                    type="button"
+                    onClick={handleInstallOnPhone}
+                    disabled={isPromptingInstall}
+                    className="w-full min-h-[50px] py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 border border-amber-500/50 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    {isPromptingInstall ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Download className="w-5 h-5" />
+                    )}
+                    {isPromptingInstall
+                      ? 'Installing Mobile App...'
+                      : 'Install Mobile App Now'}
+                  </button>
+                ) : isInIframe ? (
+                  <a
+                    href={`${directAppUrl}/?install=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full min-h-[50px] py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 border border-amber-500/50 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    <Download className="w-5 h-5" />
+                    Open Direct Install Page in Chrome
+                  </a>
+                ) : null}
 
-            {isInstallable && !isInstalled && (
-              <button
-                type="button"
-                onClick={install}
-                className="w-full min-h-[46px] py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                Install App on This Device Now
-              </button>
+                {installHelpHint && !isInstallable && (
+                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-slate-900 text-xs leading-relaxed flex flex-col gap-2">
+                    {isIOS ? (
+                      <p className="font-semibold">
+                        On iPhone / iPad: Tap the Safari <strong>Share</strong> button at the bottom of your screen, then tap <strong>Add to Home Screen</strong>.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="font-bold text-slate-950">
+                          Why didn’t the download start automatically?
+                        </p>
+                        <ol className="list-decimal list-inside space-y-1.5 text-slate-800">
+                          <li>
+                            <strong>If you still have the previous SROM app icon on your phone:</strong> Please uninstall/remove that old icon from your phone first — Android blocks downloading the app a second time while an older icon is still on your phone.
+                          </li>
+                          <li>
+                            Or tap Chrome’s top-right menu (<strong>⋮</strong>) and tap <strong>Install app</strong> / <strong>Add to Home screen</strong>.
+                          </li>
+                        </ol>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="flex items-center gap-2">
@@ -1604,14 +1607,14 @@ export default function App() {
                 className="flex-1 min-h-[44px] py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
               >
                 {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                {copiedLink ? 'App Link Copied!' : 'Copy Link to Send to Dad'}
+                {copiedLink ? 'App Link Copied!' : 'Copy App Link'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowPhoneModal(false)}
                 className="min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer"
               >
-                Done
+                Close
               </button>
             </div>
           </div>
